@@ -84,7 +84,6 @@ func parttwo() {
       continue
     } else {
       totalScore += val * num
-      similarities[num] = 0
     }
   }
 

@@ -1,91 +1,75 @@
 package main
 
 import (
-  "fmt"
-  "log"
-  "os"
-  "bufio"
-  "strings"
-  "strconv"
-  "sort"
+	_ "embed"
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
 )
 
+//go:embed input.txt
+var input string
+
 func main() {
-  fmt.Println("Running part one")
-  partone()
-  fmt.Println("Running part two")
-  parttwo()
+	fmt.Println("Running part one")
+	partone()
+	fmt.Println("Running part two")
+	parttwo()
 }
 
 func readFile() ([]int, []int) {
-  f, err := os.Open("input.txt")
-  if err != nil {
-    log.Fatal(err)
-  }
+	firstList := make([]int, 0, 1000)
+	secondList := make([]int, 0, 1000)
 
-  defer f.Close()
+	for _, row := range strings.Split(input, "\n") {
+		splits := strings.Fields(row)
+		left, err1 := strconv.Atoi(splits[0])
+		right, err2 := strconv.Atoi(splits[1])
+		if err1 == nil && err2 == nil {
+			firstList = append(firstList, left)
+			secondList = append(secondList, right)
+		}
+	}
 
-  scanner := bufio.NewScanner(f)
-
-  firstList := make([]int, 0, 1000)
-  secondList := make([]int, 0, 1000)
-
-  for scanner.Scan() {
-    splits := strings.Fields(scanner.Text())
-    i, err1 := strconv.Atoi(splits[0])
-    if err1 != nil {
-      panic(err1)
-    }
-    firstList = append(firstList, i)
-    j, err2 := strconv.Atoi(splits[1])
-    if err2 != nil {
-      panic(err2)
-    }
-    secondList = append(secondList, j)
-  }
-
-  if err := scanner.Err(); err != nil {
-    log.Fatal(err)
-  }
-
-  return firstList, secondList
+	return firstList, secondList
 }
 
 func partone() {
-  firstList, secondList := readFile()
-  sort.Ints(firstList)
-  sort.Ints(secondList)
+	firstList, secondList := readFile()
+	sort.Ints(firstList)
+	sort.Ints(secondList)
 
-  totalDiff := 0
+	totalDiff := 0
 
-  for i, val := range firstList {
-    curDiff := val - secondList[i]
-    if curDiff < 0 {
-      curDiff *= -1
-    }
-    totalDiff += curDiff
-  }
+	for i, val := range firstList {
+		curDiff := val - secondList[i]
+		if curDiff < 0 {
+			curDiff *= -1
+		}
+		totalDiff += curDiff
+	}
 
-  fmt.Println("The total difference is: ", totalDiff)
+	fmt.Println("The total difference is: ", totalDiff)
 }
 
 func parttwo() {
-  firstList, secondList := readFile()
-  similarities := make(map[int]int)
+	firstList, secondList := readFile()
+	similarities := make(map[int]int)
 
-  for _, num := range secondList {
-    similarities[num]++
-  }
+	for _, num := range secondList {
+		similarities[num]++
+	}
 
-  totalScore := 0
+	totalScore := 0
 
-  for _, num := range firstList {
-    if val, ok := similarities[num]; !ok {
-      continue
-    } else {
-      totalScore += val * num
-    }
-  }
+	for _, num := range firstList {
+		if val, ok := similarities[num]; !ok {
+			continue
+		} else {
+			totalScore += val * num
+		}
+	}
 
-  fmt.Println("Total score is: ", totalScore)
+	fmt.Println("Total score is: ", totalScore)
 }

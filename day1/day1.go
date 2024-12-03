@@ -23,6 +23,9 @@ func readFile() ([]int, []int) {
 	secondList := make([]int, 0, 1000)
 
 	for _, row := range strings.Split(input, "\n") {
+		if row == "" {
+			continue
+		}
 		splits := strings.Fields(row)
 		left, err1 := strconv.Atoi(splits[0])
 		right, err2 := strconv.Atoi(splits[1])

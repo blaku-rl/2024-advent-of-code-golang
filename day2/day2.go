@@ -56,6 +56,13 @@ func isSafeLevelChange(prevLevel int, nextLevel int, isPositive bool) bool {
 	return true
 }
 
+func removeIndexFromSlice(curSlice []int, index int) []int {
+	newSlice := make([]int, 0, len(curSlice)-1)
+	newSlice = append(newSlice, curSlice[:index]...)
+	newSlice = append(newSlice, curSlice[index+1:]...)
+	return newSlice
+}
+
 func partone() {
 	reports := parseInput()
 	safeReports := 0
@@ -74,39 +81,16 @@ func parttwo() {
 	safeReports := 0
 
 	for _, report := range reports {
-		posAmount := 0
-		negAmount := 0
-		for i := 0; i < len(report)-1; i++ {
-			if report[i] < report[i+1] {
-				posAmount++
-			} else if report[i] > report[i+1] {
-				negAmount++
-			}
-		}
-		var isPositive bool
-		if posAmount > negAmount {
-			isPositive = true
-		} else if posAmount < negAmount {
-			isPositive = false
-		} else {
+		if isReportSafe(report) {
+			safeReports++
 			continue
 		}
-		unsafeValues := 0
-		for i := 0; i < len(report)-1; i++ {
-			if !isSafeLevelChange(report[i], report[i+1], isPositive) {
-				unsafeValues++
-				if unsafeValues >= 2 || i == len(report)-2 {
-					break
-				}
-				if !isSafeLevelChange(report[i], report[i+2], isPositive) {
-					unsafeValues++
-					break
-				}
-				i++
+		for i := range report {
+			newReport := removeIndexFromSlice(report, i)
+			if isReportSafe(newReport) {
+				safeReports++
+				break
 			}
-		}
-		if unsafeValues < 2 {
-			safeReports++
 		}
 	}
 

@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -49,6 +50,14 @@ func parseInput() ([][]byte, Position){
 	return board, startPos
 }
 
+func shortPositionString(pos Position) string {
+	return strconv.Itoa(pos.row) + "," + strconv.Itoa(pos.col)
+}
+
+func longPositionString(pos Position) string {
+	return shortPositionString(pos) + "," + string(pos.direction)
+}
+
 func nextPosition(pos Position) Position {
 	switch pos.direction {
 	case 'N': pos.row--
@@ -75,12 +84,33 @@ func isPositionEnd(board [][]byte, pos Position) bool {
 	return pos.row < 0 || pos.row >= len(board) || pos.col < 0 || pos.col >= len(board[0])
 }
 
+func isPositionOpen(board [][]byte, pos Position) bool {
+	return board[pos.row][pos.col] == '.'
+}
+
 func movePosition(board [][]byte, pos Position) Position {
 	nextPos := nextPosition(pos) 
-	if isPositionEnd(board, nextPos) || board[nextPos.row][nextPos.col] == '.' {
+	if isPositionEnd(board, nextPos) || isPositionOpen(board, nextPos) {
 		return nextPos
 	}
 	return rotatePosition(pos)
+}
+
+func isLoopSpot(board [][]byte, pos Position, spotsVisited map[string]bool) bool {
+	rotPos := rotatePosition(pos)
+
+	for true {
+		if isPositionEnd(board, rotPos) || !isPositionOpen(board, rotPos) {
+			return false
+		}
+
+		if _, match := spotsVisited[longPositionString(rotPos)]; match {
+			return true
+		}
+
+		rotPos = nextPosition(rotPos)
+	}
+	 return false
 }
 
 func partone() {
@@ -88,8 +118,7 @@ func partone() {
 	spotsVisited := make(map[string]bool)
 
 	for !isPositionEnd(board, pos) {
-		spot := string(pos.row) + "," + string(pos.col)
-		spotsVisited[spot] = true
+		spotsVisited[shortPositionString(pos)] = true
 		pos = movePosition(board, pos)
 	}
 
@@ -97,5 +126,24 @@ func partone() {
 }
 
 func parttwo() {
+	board, pos := parseInput()
+	spotsVisited := make(map[string]bool)
+	startPos := Position{}
+	startPos.row = pos.row
+	startPos.col = pos.col
+	obstructions := make(map[string]bool)
 
+	for !isPositionEnd(board, pos) {
+		if isLoopSpot(board, pos, spotsVisited) {
+			obstructSpot := nextPosition(pos)
+			if obstructSpot.row != startPos.row || obstructSpot.col != startPos.col {
+				obstructions[shortPositionString(obstructSpot)] = true
+			}
+		}
+
+		spotsVisited[longPositionString(pos)] = true
+		pos = movePosition(board, pos)
+	}
+
+	fmt.Println("Obstructions to be placed: ", len(obstructions))
 }

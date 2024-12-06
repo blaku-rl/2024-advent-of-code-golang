@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -27,45 +28,73 @@ func parseInput() ([]string, []string) {
 		}
 
 		if strings.Contains(row, "|") {
-			rules = append(rules, row)
+			rules = append(rules, strings.TrimSpace(row))
 		} else if strings.Contains(row, ",") {
-			updates = append(updates, row)
+			updates = append(updates, strings.TrimSpace(row))
 		}
 	}
 
 	return rules, updates
 }
 
-func partone() {
-	rules, updates := parseInput()
+func generateRegexs(rules []string) []*regexp.Regexp {
 	var regRules []*regexp.Regexp
-	total := 0
 
 	for _, rule := range rules {
 		nums := strings.Split(rule, "|")
-		regStr := strings.TrimSpace(nums[1]) + ",.*" + strings.TrimSpace(nums[0])
+		regStr := nums[1] + ",.*" + nums[0]
 		reg, err := regexp.Compile(regStr)
 		if err == nil {
 			regRules = append(regRules, reg)
 		}
 	}
 
-	for _, update := range updates {
-		isValid := true
-		for _, reg := range regRules {
-			match := reg.MatchString(update)
-			if match {
-				isValid = false
-				break
-			}
-		}
+	return regRules
+}
 
-		if isValid {
-			nums := strings.Split(update, ",")
-			num, err := strconv.Atoi(nums[len(nums)/2])
-			if err == nil {
-				total += num
-			}
+func isUpdateValid(update string, regRules []*regexp.Regexp) bool {
+	for _, reg := range regRules {
+		if reg.MatchString(update) {
+			return false
+		}
+	}
+	return true
+}
+
+func getMidValue(update string) int {
+	nums := strings.Split(update, ",")
+	num, err := strconv.Atoi(nums[len(nums)/2])
+	if err == nil {
+		return num
+	}
+	return 0
+}
+
+func sortUpdate(update string, rulesMap map[string]bool) string {
+	nums := strings.Split(update, ",")
+
+	sort.Slice(nums, func(i, j int) bool {
+		entry := nums[j] + "|" + nums[i]
+		_, ok := rulesMap[entry]
+		return !ok
+	})
+
+	var newStr string
+	for _, num := range nums {
+		newStr += num + ","
+	}
+
+	return newStr[:len(newStr) - 1]
+}
+
+func partone() {
+	rules, updates := parseInput()
+	regRules := generateRegexs(rules)
+	total := 0
+
+	for _, update := range updates {
+		if isUpdateValid(update, regRules) {
+			total += getMidValue(update)
 		}
 	}
 
@@ -73,5 +102,23 @@ func partone() {
 }
 
 func parttwo() {
+	rules, updates := parseInput()
+	regRules := generateRegexs(rules)
+	rulesMap := make(map[string]bool)
+	total := 0
 
+	for _, rule := range rules {
+		rulesMap[rule] = true
+	}
+
+	for _, update := range updates {
+		if isUpdateValid(update, regRules) {
+			continue
+		}
+
+		sortedUpdate := sortUpdate(update, rulesMap)
+		total += getMidValue(sortedUpdate)
+	}
+
+	fmt.Println("Total is: ", total)
 }

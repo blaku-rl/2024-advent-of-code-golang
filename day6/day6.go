@@ -80,15 +80,17 @@ func rotatePosition(pos Position) Position {
 	return pos
 }
 
-func isPositionEnd(board [][]byte, pos Position) bool {
-	return pos.row < 0 || pos.row >= len(board) || pos.col < 0 || pos.col >= len(board[0])
+func isPositionEnd(board *[][]byte, pos Position) bool {
+	b := *board
+	return pos.row < 0 || pos.row >= len(b) || pos.col < 0 || pos.col >= len(b[0])
 }
 
-func isPositionOpen(board [][]byte, pos Position) bool {
-	return board[pos.row][pos.col] == '.'
+func isPositionOpen(board *[][]byte, pos Position) bool {
+	b := *board
+	return b[pos.row][pos.col] == '.'
 }
 
-func movePosition(board [][]byte, pos Position) Position {
+func movePosition(board *[][]byte, pos Position) Position {
 	nextPos := nextPosition(pos) 
 	if isPositionEnd(board, nextPos) || isPositionOpen(board, nextPos) {
 		return nextPos
@@ -96,30 +98,28 @@ func movePosition(board [][]byte, pos Position) Position {
 	return rotatePosition(pos)
 }
 
-func isLoopSpot(board [][]byte, pos Position, spotsVisited map[string]bool) bool {
-	rotPos := rotatePosition(pos)
+func isLoopSpot(board *[][]byte, pos Position) bool {
+	visited := make(map[string]bool)
 
-	for true {
-		if isPositionEnd(board, rotPos) || !isPositionOpen(board, rotPos) {
-			return false
-		}
-
-		if _, match := spotsVisited[longPositionString(rotPos)]; match {
+	for !isPositionEnd(board, pos) {
+		entry := longPositionString(pos)
+		if _, match := visited[entry]; match {
 			return true
 		}
-
-		rotPos = nextPosition(rotPos)
+		visited[entry] = true
+		pos = movePosition(board, pos)
 	}
-	 return false
+
+	return false
 }
 
 func partone() {
 	board, pos := parseInput()
 	spotsVisited := make(map[string]bool)
 
-	for !isPositionEnd(board, pos) {
+	for !isPositionEnd(&board, pos) {
 		spotsVisited[shortPositionString(pos)] = true
-		pos = movePosition(board, pos)
+		pos = movePosition(&board, pos)
 	}
 
 	fmt.Println("Spaces visited: ", len(spotsVisited))
@@ -128,21 +128,23 @@ func partone() {
 func parttwo() {
 	board, pos := parseInput()
 	spotsVisited := make(map[string]bool)
-	startPos := Position{}
-	startPos.row = pos.row
-	startPos.col = pos.col
 	obstructions := make(map[string]bool)
+	startPos := Position{pos.row, pos.col, pos.direction}
 
-	for !isPositionEnd(board, pos) {
-		if isLoopSpot(board, pos, spotsVisited) {
-			obstructSpot := nextPosition(pos)
-			if obstructSpot.row != startPos.row || obstructSpot.col != startPos.col {
-				obstructions[shortPositionString(obstructSpot)] = true
+	for !isPositionEnd(&board, pos) {
+		obsSpot := nextPosition(pos)
+		_, obsHit := obstructions[shortPositionString(obsSpot)]
+
+		if !isPositionEnd(&board, obsSpot) && isPositionOpen(&board, obsSpot) && !obsHit && (obsSpot.row != startPos.row || obsSpot.col != startPos.col) {
+			board[obsSpot.row][obsSpot.col] = '#'
+			if isLoopSpot(&board, startPos) {
+				obstructions[shortPositionString(obsSpot)] = true
 			}
+			board[obsSpot.row][obsSpot.col] = '.'
 		}
 
 		spotsVisited[longPositionString(pos)] = true
-		pos = movePosition(board, pos)
+		pos = movePosition(&board, pos)
 	}
 
 	fmt.Println("Obstructions to be placed: ", len(obstructions))

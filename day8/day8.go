@@ -41,27 +41,12 @@ func parseInput() [][]byte {
 	return grid
 }
 
-func getAntinodes(first, second Position) (Position, Position) {
-	rowDiff := first.row - second.row
-	colDiff := first.col - second.col
-
-	pos1 := Position{first.row + rowDiff, first.col + colDiff}
-	pos2 := Position{second.row - rowDiff, second.col - colDiff}
-	return pos1, pos2
-}
-
-func isPositionInGrid(grid [][]byte, pos Position) bool {
-	return pos.row >= 0 && pos.row < len(grid) && pos.col >= 0 && pos.col < len(grid[0])
-}
-
-func partone() {
-	grid := parseInput()
+func getAntennasMap(grid *[][]byte) map[byte][]Position {
 	antennas := make(map[byte][]Position)
-	antinodes := make(map[Position]bool)
 
-	for row := range grid {
-		for col := range grid {
-			antenna := grid[row][col]
+	for row := range *grid {
+		for col := range (*grid)[row] {
+			antenna := (*grid)[row][col]
 			if antenna == '.' {
 				continue
 			}
@@ -74,14 +59,68 @@ func partone() {
 		}
 	}
 
+	return antennas
+}
+
+func getAntinodePair(first, second Position) (Position, Position) {
+	rowDiff := first.row - second.row
+	colDiff := first.col - second.col
+
+	pos1 := Position{first.row + rowDiff, first.col + colDiff}
+	pos2 := Position{second.row - rowDiff, second.col - colDiff}
+	return pos1, pos2
+}
+
+func isPositionInGrid(grid *[][]byte, pos Position) bool {
+	return pos.row >= 0 && pos.row < len(*grid) && pos.col >= 0 && pos.col < len((*grid)[0])
+}
+
+func gcd(a, b int) int {
+    for b != 0 {
+        a, b = b, a%b
+    }
+    return a
+}
+
+func getAntinodeList(grid *[][]byte, first, second Position) []Position {
+	antinodes := make([]Position, 0)
+	rowDiff := first.row - second.row
+	colDiff := first.col - second.col
+
+	denominator := gcd(rowDiff, colDiff)
+	rowDiff /= denominator
+	colDiff /= denominator
+
+	antinodes = append(antinodes, first)
+
+	curPos := Position{first.row + rowDiff, first.col + colDiff}
+	for isPositionInGrid(grid, curPos) {
+		antinodes = append(antinodes, curPos)
+		curPos = Position{curPos.row + rowDiff, curPos.col + colDiff}
+	}
+
+	curPos = Position{first.row - rowDiff, first.col - colDiff}
+	for isPositionInGrid(grid, curPos) {
+		antinodes = append(antinodes, curPos)
+		curPos = Position{curPos.row - rowDiff, curPos.col - colDiff}
+	}
+
+	return antinodes
+}
+
+func partone() {
+	grid := parseInput()
+	antennas := getAntennasMap(&grid)
+	antinodes := make(map[Position]bool)
+
 	for _, nodes := range antennas {
 		for first := range nodes {
 			for second := first + 1; second < len(nodes); second++ {
-				anti1, anti2 := getAntinodes(nodes[first], nodes[second])
-				if isPositionInGrid(grid, anti1) {
+				anti1, anti2 := getAntinodePair(nodes[first], nodes[second])
+				if isPositionInGrid(&grid, anti1) {
 					antinodes[anti1] = true
 				}
-				if isPositionInGrid(grid, anti2) {
+				if isPositionInGrid(&grid, anti2) {
 					antinodes[anti2] = true
 				}
 			}
@@ -92,5 +131,20 @@ func partone() {
 }
 
 func parttwo() {
+	grid := parseInput()
+	antennas := getAntennasMap(&grid)
+	antinodes := make(map[Position]bool)
 
+	for _, nodes := range antennas {
+		for first := range nodes {
+			for second := first + 1; second < len(nodes); second++ {
+				nodeList := getAntinodeList(&grid, nodes[first], nodes[second])
+				for _, antinode := range nodeList {
+					antinodes[antinode] = true
+				}
+			}
+		}
+	}
+
+	fmt.Println("Total unique antinodes: ", len(antinodes))
 }

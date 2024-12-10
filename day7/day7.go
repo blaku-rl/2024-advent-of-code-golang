@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"math"
 )
 
 type Equation struct {
@@ -56,12 +57,39 @@ func parseInput() []Equation {
 	return equations
 }
 
-func isEquationConstructable(targetNum uint, nums []uint, curTotal uint) bool {
+func twoOperatorCheck(targetNum uint, nums []uint, curTotal uint) bool {
 	if len(nums) == 1 {
 		return curTotal+nums[0] == targetNum || curTotal*nums[0] == targetNum
 	}
 
-	return isEquationConstructable(targetNum, nums[1:], curTotal+nums[0]) || isEquationConstructable(targetNum, nums[1:], curTotal*nums[0])
+	return twoOperatorCheck(targetNum, nums[1:], curTotal+nums[0]) || twoOperatorCheck(targetNum, nums[1:], curTotal*nums[0])
+}
+
+func concatNumbers(left, right uint) uint {
+	power := int(1)
+	for right % (uint(math.Pow10(power))) != right {
+		power++
+	}
+
+	return (left * (uint(math.Pow10(power)))) + right
+}
+
+func threeOperatorCheck(targetNum uint, nums []uint, curTotal uint) bool {
+	if curTotal > targetNum {
+		return false
+	}
+	if len(nums) == 1 {
+		return curTotal+nums[0] == targetNum || curTotal*nums[0] == targetNum || concatNumbers(curTotal, nums[0]) == targetNum
+	}
+
+	if threeOperatorCheck(targetNum, nums[1:], curTotal+nums[0]) {
+		return true
+	}
+	if threeOperatorCheck(targetNum, nums[1:], curTotal*nums[0]) {
+		return true
+	}
+
+	return threeOperatorCheck(targetNum, nums[1:], concatNumbers(curTotal, nums[0]))
 }
 
 func partone() {
@@ -69,7 +97,7 @@ func partone() {
 	var totalValue uint
 
 	for _, eq := range equations {
-		if isEquationConstructable(eq.targetNum, eq.numbers[1:], eq.numbers[0]) {
+		if twoOperatorCheck(eq.targetNum, eq.numbers[1:], eq.numbers[0]) {
 			totalValue += eq.targetNum
 		}
 	}
@@ -78,5 +106,14 @@ func partone() {
 }
 
 func parttwo() {
+	equations := parseInput()
+	var totalValue uint
 
+	for _, eq := range equations {
+		if threeOperatorCheck(eq.targetNum, eq.numbers[1:], eq.numbers[0]) {
+			totalValue += eq.targetNum
+		}
+	}
+
+	fmt.Println("Total value: ", totalValue)
 }

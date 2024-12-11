@@ -32,11 +32,10 @@ func parseInput() []byte {
 	return diskLayout
 }
 
-func partone() {
-	diskLayout := parseInput()
-	diskMemory := make([]DiskItem, 0, len(diskLayout))
+func getDiskMemory(diskLayout *[]byte) []DiskItem {
+	diskMemory := make([]DiskItem, 0, len(*diskLayout))
 
-	for index, num := range diskLayout {
+	for index, num := range *diskLayout {
 		if index%2 == 0 {
 			diskMemory = append(diskMemory, DiskItem{index / 2, num})
 		} else {
@@ -44,7 +43,12 @@ func partone() {
 		}
 	}
 
+	return diskMemory
+}
+
+func fragmentedCompression(diskMemory []DiskItem) []DiskItem {
 	compressedMemory := make([]DiskItem, 0)
+
 	for len(diskMemory) > 0 {
 		fileToProcess := diskMemory[0]
 		diskMemory = diskMemory[1:]
@@ -75,16 +79,105 @@ func partone() {
 		}
 	}
 
+	return compressedMemory
+}
+
+func smartCompression(diskMemory []DiskItem) []DiskItem {
+	compressedMemory := make([]DiskItem, 0)
+	fileMap := make(map[byte][]int)
+
+	//loop in reverse to get items
+	for i := len(diskMemory) - 1; i >= 0; i-- {
+		file := diskMemory[i]
+		if file.fileId == -1 {
+			continue
+		}
+
+		if _, ok := fileMap[file.size]; !ok {
+			fileMap[file.size] = make([]int, 0)
+		}
+
+		fileMap[file.size] = append(fileMap[file.size], i)
+	}
+
+	for i := 0; i < len(diskMemory); i++ {
+		file := diskMemory[i]
+
+		if file.size == 0 {
+			continue
+		}
+
+		if file.fileId != -1 {
+			compressedMemory = append(compressedMemory, file)
+			continue
+		}
+
+		lastFile := struct {
+			index int
+			size byte
+		} {
+			index: i,
+			size: 0,
+		}
+
+		for j := file.size; j >= 0 && j < 10; j-- {
+			if len(fileMap[j]) == 0 {
+				continue
+			}
+
+			potentialMovedFileIndex := fileMap[j][0]
+			if lastFile.index < potentialMovedFileIndex {
+				lastFile.index = potentialMovedFileIndex
+				lastFile.size = j
+			}
+		}
+
+		if lastFile.index > i {
+			compressedMemory = append(compressedMemory, diskMemory[lastFile.index])
+			diskMemory[lastFile.index].fileId = -1
+			diskMemory[i].size -= lastFile.size
+			fileMap[lastFile.size] = fileMap[lastFile.size][1:]
+			i--
+		} else {
+			compressedMemory = append(compressedMemory, file)
+		}
+	}
+
+	return compressedMemory
+}
+
+func checksumForFile(file DiskItem, curSum uint64, index int) (uint64, int) {
+	if file.fileId >= 0 {
+		curSum += uint64(file.fileId * ((int(file.size) * (index + (index + int(file.size) - 1))) / 2))
+	}
+	index += int(file.size)
+	return curSum, index
+}
+
+func partone() {
+	diskLayout := parseInput()
+	diskMemory := getDiskMemory(&diskLayout)
+	compressedMemory := fragmentedCompression(diskMemory)
+
 	checksum := uint64(0)
 	index := 0
 	for _, item := range compressedMemory {
-		checksum += uint64(item.fileId * ((int(item.size) * (index + (index + int(item.size) - 1))) / 2))
-		index += int(item.size)
+		checksum, index = checksumForFile(item, checksum, index)
 	}
 
 	fmt.Println("Checksum value is: ", checksum)
 }
 
 func parttwo() {
+	diskLayout := parseInput()
+	diskMemory := getDiskMemory(&diskLayout)
+	compressedMemory := smartCompression(diskMemory)
 
+	checksum := uint64(0)
+	index := 0
+	for _, item := range compressedMemory {
+		checksum, index = checksumForFile(item, checksum, index)
+	}
+
+	fmt.Println("Checksum value is: ", checksum)
 }

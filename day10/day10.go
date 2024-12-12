@@ -16,6 +16,7 @@ type PointOnGrid struct {
 	pos Position
 	height byte
 	checked bool
+	rating int
 	connectedPeaks map[Position]bool
 }
 
@@ -49,6 +50,7 @@ func parseInput() [][]PointOnGrid {
 					},
 					height: byte(height),
 					checked: false,
+					rating: 0,
 					connectedPeaks: make(map[Position]bool),
 				}
 				rowOfGrid = append(rowOfGrid, point)
@@ -85,15 +87,16 @@ func possibleConnectedPaths(topoGrid *[][]PointOnGrid, point *PointOnGrid) []*Po
 	return points
 }
 
-func calculatePaths(topoGrid *[][]PointOnGrid, point *PointOnGrid) map[Position]bool {
+func calculatePaths(topoGrid *[][]PointOnGrid, point *PointOnGrid) (map[Position]bool, int) {
 	if point.checked {
-		return point.connectedPeaks
+		return point.connectedPeaks, point.rating
 	}
 
 	if point.height == 9 {
 		point.connectedPeaks[point.pos] = true
 		point.checked = true
-		return point.connectedPeaks
+		point.rating = 1
+		return point.connectedPeaks, point.rating
 	}
 
 	point.checked = true
@@ -102,12 +105,15 @@ func calculatePaths(topoGrid *[][]PointOnGrid, point *PointOnGrid) map[Position]
 			continue
 		}
 
-		for peak := range calculatePaths(topoGrid, nextPoint) {
+		peaks, rating := calculatePaths(topoGrid, nextPoint)
+		point.rating += rating
+
+		for peak := range peaks {
 			point.connectedPeaks[peak] = true
 		}
 	}
 
-	return point.connectedPeaks
+	return point.connectedPeaks, point.rating
 }
 
 func partone() {
@@ -138,5 +144,28 @@ func partone() {
 }
 
 func parttwo() {
+	topoGrid := parseInput()
 
+	for row := range topoGrid {
+		for col := range topoGrid[row] {
+			if topoGrid[row][col].checked {
+				continue
+			}
+
+			calculatePaths(&topoGrid, &(topoGrid[row][col]))
+		}
+	}
+
+	totalRating := 0
+	for row := range topoGrid {
+		for col := range topoGrid[row] {
+			if topoGrid[row][col].height != 0 {
+				continue
+			}
+
+			totalRating += topoGrid[row][col].rating
+		}
+	}
+
+	fmt.Println("Total rating: ", totalRating)
 }

@@ -6,21 +6,90 @@ import (
 	"strings"
 )
 
+type Direction byte
+
+const (
+	North Direction = 0
+	East Direction = 1
+	South Direction = 2
+	West Direction = 3
+)
+
+func (dir Direction) PerpendicularDirections() []Direction {
+	if dir == North || dir == South {
+		return []Direction {
+			East,
+			West,
+		}
+	}
+
+	return []Direction {
+		North,
+		South,
+	}
+}
+
+func GetAllDirections() []Direction {
+	return []Direction{
+		North,
+		East,
+		South,
+		West,
+	}
+}
+
 type Position struct {
 	row int
 	col int
 }
 
+func (pos Position) MoveDirection(dir Direction) Position {
+	row := pos.row
+	col := pos.col
+
+	switch dir {
+	case North: row -= 1
+	case South: row += 1
+	case East: col += 1
+	case West: col -= 1
+	}
+
+	return Position{
+		row: row,
+		col: col,
+	}
+}
+
+type Orientation struct {
+	pos Position
+	dir Direction
+}
+
+func (pos Position) GetAdjacentPositions() []Orientation {
+	orientations := make([]Orientation, 0, 4)
+
+	for _, dir := range GetAllDirections() {
+		or := Orientation{
+			pos: pos.MoveDirection(dir),
+			dir: dir,
+		}
+
+		orientations = append(orientations, or)
+	}
+
+	return orientations
+}
+
 type Plot struct {
 	pos       Position
 	plant     byte
-	perimeter byte
+	perimeter map[Direction]bool
 	checked   bool
 }
 
 type Region struct {
 	plant byte
-	plots map[Plot]bool
+	plots map[Position]*Plot
 }
 
 func (reg Region) Area() int {
@@ -29,8 +98,8 @@ func (reg Region) Area() int {
 
 func (reg Region) Perimeter() int {
 	totalPerimeter := 0
-	for plot := range reg.plots {
-		totalPerimeter += int(plot.perimeter)
+	for _, plot := range reg.plots {
+		totalPerimeter += int(len(plot.perimeter))
 	}
 	return totalPerimeter
 }
@@ -66,7 +135,7 @@ func parseInput() [][]Plot {
 					col: col,
 				},
 				plant:     line[col],
-				perimeter: 0,
+				perimeter: make(map[Direction]bool),
 				checked:   false,
 			}
 			plotRow = append(plotRow, plot)
@@ -75,27 +144,6 @@ func parseInput() [][]Plot {
 	}
 
 	return plots
-}
-
-func getAdjacentPositions(pos Position) []Position {
-	return []Position{
-		{
-			row: pos.row + 1,
-			col: pos.col,
-		},
-		{
-			row: pos.row - 1,
-			col: pos.col,
-		},
-		{
-			row: pos.row,
-			col: pos.col + 1,
-		},
-		{
-			row: pos.row,
-			col: pos.col - 1,
-		},
-	}
 }
 
 func isNextPlotConnected(pos Position, plant byte, plots *[][]Plot) bool {
@@ -111,15 +159,31 @@ func makeRegion(region *Region, plots *[][]Plot, curPlot *Plot) {
 
 	curPlot.checked = true
 
-	for _, pos := range getAdjacentPositions(curPlot.pos) {
+	for _, orientation := range curPlot.pos.GetAdjacentPositions() {
+		pos := orientation.pos
 		if isNextPlotConnected(pos, curPlot.plant, plots) {
 			makeRegion(region, plots, &((*plots)[pos.row][pos.col]))
 		} else {
-			curPlot.perimeter += 1
+			curPlot.perimeter[orientation.dir] = true
 		}
 	}
 
-	region.plots[*curPlot] = true
+	region.plots[curPlot.pos] = curPlot
+}
+
+func removeSide(region *Region, curPlot *Plot, fenceDir Direction) {
+	if _, hasConnectedSide := curPlot.perimeter[fenceDir]; !hasConnectedSide {
+		return
+	}
+
+	delete(curPlot.perimeter, fenceDir)
+
+	for _, dir := range fenceDir.PerpendicularDirections() {
+		nextPos := curPlot.pos.MoveDirection(dir)
+		if nextPlot, valid := region.plots[nextPos]; valid {
+			removeSide(region, nextPlot, fenceDir)
+		}
+	}
 }
 
 func partone() {
@@ -133,7 +197,7 @@ func partone() {
 			}
 			region := Region{
 				plant: plot.plant,
-				plots: make(map[Plot]bool),
+				plots: make(map[Position]*Plot),
 			}
 
 			makeRegion(&region, &plots, &plot)
@@ -150,5 +214,42 @@ func partone() {
 }
 
 func parttwo() {
+	plots := parseInput()
+	regions := make([]Region, 0)
 
+	for row := range plots {
+		for _, plot := range plots[row] {
+			if plot.checked {
+				continue
+			}
+			region := Region{
+				plant: plot.plant,
+				plots: make(map[Position]*Plot),
+			}
+
+			makeRegion(&region, &plots, &plot)
+			regions = append(regions, region)
+		}
+	}
+
+	totalPrice := 0
+	for _, region := range regions {
+		totalSides := 0
+		for _, plot := range region.plots {
+			for len(plot.perimeter) > 0 {
+				var fenceDir Direction
+				for dir := range plot.perimeter {
+					fenceDir = dir
+					break
+				}
+
+				removeSide(&region, plot, fenceDir)
+				totalSides++
+			}
+		}
+
+		totalPrice += region.Area() * totalSides
+	}
+
+	fmt.Println("Total fence price is: ", totalPrice)
 }

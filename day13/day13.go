@@ -3,21 +3,20 @@ package main
 import (
 	_ "embed"
 	"fmt"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
 )
 
 type Position struct {
-	x int
-	y int
+	x uint64
+	y uint64
 }
 
 type ClawMachine struct {
 	aButton Position
 	bButton Position
-	prize Position
+	prize   Position
 }
 
 //go:embed input.txt
@@ -31,8 +30,8 @@ func main() {
 }
 
 func extractPositionFromStringSlice(strs []string) Position {
-	x, _ := strconv.Atoi(strs[len(strs) - 2])
-	y, _ := strconv.Atoi(strs[len(strs) - 1])
+	x, _ := strconv.ParseUint(strs[len(strs)-2], 10, 64)
+	y, _ := strconv.ParseUint(strs[len(strs)-1], 10, 64)
 
 	return Position{
 		x: x,
@@ -75,57 +74,83 @@ func parseInput() []ClawMachine {
 	return machines
 }
 
-func isPositionReachable(curPos, goalPos *Position) bool {
-	return curPos.x <= goalPos.x && curPos.y <= goalPos.y
-}
-
-func isGoalReached(curPos, goalPos *Position) bool {
-	return curPos.x == goalPos.x && curPos.y == goalPos.y
-}
-
-func scoreForPresses(aPresses, bPresses int) int {
-	return (3 * aPresses) + bPresses
-}
-
-func getOptimalPresses(machine *ClawMachine, maxPresses int) int {
-	bestScore := math.MaxInt
-	curPos := Position{}
-
-	for aPresses := 0; aPresses < maxPresses; aPresses++ {
-		for bPresses := 0; bPresses < maxPresses; bPresses++ {
-			curPos.x = (machine.aButton.x * aPresses) + (machine.bButton.x * bPresses)
-			curPos.y = (machine.aButton.y * aPresses) + (machine.bButton.y * bPresses)
-
-			if !isPositionReachable(&curPos, &machine.prize) {
-				break
-			}
-
-			if isGoalReached(&curPos, &machine.prize) {
-				score := scoreForPresses(aPresses, bPresses)
-				if score < bestScore {
-					bestScore = score
-					break
-				}
-			}
-		}
+func gcd(a, b uint64) uint64 {
+	for b != 0 {
+		a, b = b, a%b
 	}
+	return a
+}
 
-	if bestScore == math.MaxInt {
+func positionsAreMultiples(pos1, pos2 *Position) bool {
+	det := int64(pos1.x*pos2.y) - int64(pos1.y*pos2.x)
+	return det == 0
+}
+
+func getOptimalTokenUsage(machine *ClawMachine) uint64 {
+	if positionsAreMultiples(&machine.aButton, &machine.bButton) {
+		if !positionsAreMultiples(&machine.aButton, &machine.prize) {
+			return 0
+		}
+
+		fmt.Println("Linearlly dependent")
 		return 0
 	}
-	return bestScore
+
+	denom := gcd(machine.aButton.x, machine.aButton.y)
+	rowFactor1 := machine.aButton.y / denom
+	rowFactor2 := machine.aButton.x / denom
+
+	bPresses := int64(rowFactor2*machine.bButton.y) - int64(rowFactor1*machine.bButton.x)
+	bResult := int64(rowFactor2*machine.prize.y) - int64(rowFactor1*machine.prize.x)
+
+	if (bPresses < 0 && bResult > 0) || (bPresses > 0 && bResult < 0) {
+		return 0
+	}
+
+	if bPresses < 0 {
+		bPresses *= -1
+		bResult *= -1
+	}
+
+	reduced := gcd(uint64(bPresses), uint64(bResult))
+	bPresses /= int64(reduced)
+	bResult /= int64(reduced)
+
+	if bResult%bPresses != 0 {
+		return 0
+	}
+
+	bPresses = bResult / bPresses
+	top := int64(machine.prize.x) - (int64(machine.bButton.x) * bPresses)
+
+	if top%int64(machine.aButton.x) != 0 {
+		return 0
+	}
+
+	aPresses := top / int64(machine.aButton.x)
+	return uint64(aPresses*3) + uint64(bPresses)
 }
 
 func partone() {
 	machines := parseInput()
-	optimalTokens := 0
+	optimalTokens := uint64(0)
 	for _, machine := range machines {
-		optimalTokens += getOptimalPresses(&machine, 100)
+		optimalTokens += getOptimalTokenUsage(&machine)
 	}
 
 	fmt.Println("Optimal tokens is: ", optimalTokens)
 }
 
 func parttwo() {
+	machines := parseInput()
+	optimalTokens := uint64(0)
+	prizeMovement := uint64(10000000000000)
 
+	for _, machine := range machines {
+		machine.prize.x += prizeMovement
+		machine.prize.y += prizeMovement
+		optimalTokens += getOptimalTokenUsage(&machine)
+	}
+
+	fmt.Println("Optimal tokens is: ", optimalTokens)
 }

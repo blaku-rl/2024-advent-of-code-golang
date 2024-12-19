@@ -6,11 +6,49 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Vector struct {
 	x int64
 	y int64
+}
+
+func (v Vector) getAllAdjacentTiles() []Vector {
+	return []Vector{
+		{
+			x: v.x - 1,
+			y: v.y - 1,
+		},
+		{
+			x: v.x,
+			y: v.y - 1,
+		},
+		{
+			x: v.x + 1,
+			y: v.y - 1,
+		},
+		{
+			x: v.x - 1,
+			y: v.y,
+		},
+		{
+			x: v.x + 1,
+			y: v.y,
+		},
+		{
+			x: v.x - 1,
+			y: v.y + 1,
+		},
+		{
+			x: v.x,
+			y: v.y + 1,
+		},
+		{
+			x: v.x + 1,
+			y: v.y + 1,
+		},
+	}
 }
 
 type Robot struct {
@@ -97,6 +135,115 @@ func partone() {
 	fmt.Println("Safety score: ", totalScore)
 }
 
-func parttwo() {
+func moveRobot(robot *Robot, boardSize *Vector) {
+	robot.location.x += robot.velocity.x
+	robot.location.y += robot.velocity.y
 
+	if robot.location.x < 0 {
+		robot.location.x += boardSize.x
+	} else if robot.location.x >= boardSize.x {
+		robot.location.x -= boardSize.x
+	}
+
+	if robot.location.y < 0 {
+		robot.location.y += boardSize.y
+	} else if robot.location.y >= boardSize.y {
+		robot.location.y -= boardSize.y
+	}
+}
+
+func areRobotsConnected(robotLocations map[Vector]int) bool {
+	totalLocations := len(robotLocations)
+	for key := range robotLocations {
+		return totalLocations == numConnections(&key, &robotLocations)
+	}
+	return false
+}
+
+func robotLengths(robotLocations map[Vector]int) {
+	for key := range robotLocations {
+		length := len(robotLocations)
+		robotLen := numConnections(&key, &robotLocations)
+
+		fmt.Println("Key is: ", key)
+		fmt.Println("Key connections is: ", robotLen)
+		fmt.Println("Total len is: ", length)
+		return
+	}
+}
+
+func keyLarge(robotLocations map[Vector]int) bool {
+	for key := range robotLocations {
+		return numConnections(&key, &robotLocations) > 100
+	}
+	return false
+}
+
+func numConnections(loc *Vector, robotLocations *map[Vector]int) int {
+	delete(*robotLocations, *loc)
+	connections := 1
+
+	for _, newLoc := range loc.getAllAdjacentTiles() {
+		if _, match := (*robotLocations)[newLoc]; match {
+			connections += numConnections(&newLoc, robotLocations)
+		}
+	}
+
+	return connections
+}
+
+func printBoard(robotLocations *map[Vector]int, boardSize *Vector) {
+	for row := 0; row < int(boardSize.x); row++ {
+		rowStr := ""
+		for col := 0; col < int(boardSize.y); col++ {
+			pos := Vector{
+				x: int64(row),
+				y: int64(col),
+			}
+			if _, match := (*robotLocations)[pos]; match {
+				rowStr += "#"
+			} else {
+				rowStr += "."
+			}
+		}
+		fmt.Println(rowStr)
+	}
+}
+
+func parttwo() {
+	robots := parseInput()
+	boardSize := Vector{
+		x: 101,
+		y: 103,
+	}
+
+	robotLocations := make(map[Vector]int)
+
+	for _, robot := range robots {
+		robotLocations[robot.location]++
+	}
+	seconds := 0
+
+	for !areRobotsConnected(robotLocations) {
+		seconds++
+		for index := range robots {
+			robotLocations[robots[index].location]--
+			if robotLocations[robots[index].location] <= 0 {
+				delete(robotLocations, robots[index].location)
+			}
+			moveRobot(&robots[index], &boardSize)
+			robotLocations[robots[index].location]++
+		}
+
+		printBoard(&robotLocations, &boardSize)
+		robotLengths(robotLocations)
+		fmt.Println("Seconds: ", seconds)
+		time.Sleep(50 * time.Millisecond)
+		if keyLarge(robotLocations) {
+			break
+		}
+	}
+
+	printBoard(&robotLocations, &boardSize)
+	fmt.Println("Seconds passed: ", seconds)
 }
